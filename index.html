@@ -17,13 +17,13 @@
 
     <section class="card builder-card">
       <div class="section-heading">
-        <div><span class="step-number">01</span><h2>Choose your website</h2></div>
+        <div><span class="step-number">01</span><h2>Choose your website files</h2></div>
         <span class="pill">TEXT FILES ONLY</span>
       </div>
       <label class="drop-zone" for="site-files" id="drop-zone">
-        <input id="site-files" type="file" multiple webkitdirectory directory accept=".html,.htm,.css,.js,.json,.txt,.svg">
+        <input id="site-files" type="file" multiple accept=".html,.htm,.css,.js,.json,.txt,.svg">
         <span class="upload-icon">↑</span>
-        <strong>Drop a website folder here</strong>
+        <strong>Drop files here</strong>
         <span>or tap to choose files</span>
         <small>HTML · CSS · JavaScript · JSON · TXT · SVG</small>
       </label>
@@ -38,7 +38,7 @@
       <button id="bake-button" class="primary-button" disabled>🍪 Bake Website</button>
       <div id="status" class="status" aria-live="polite">
         <div class="status-title">Ready when you are.</div>
-        <div class="status-detail">Select a small website to begin.</div>
+        <div class="status-detail">Select website files to begin.</div>
       </div>
       <div id="result" class="result" hidden></div>
     </section>

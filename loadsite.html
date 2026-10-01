@@ -1,0 +1,250 @@
+const ALLOWED = new Set(['html', 'htm', 'css', 'js', 'json', 'txt', 'svg']);
+const CHUNK_SIZE = 3000;
+const PREFIX = 'cookiehost_';
+
+const filesInput = document.querySelector('#site-files');
+const dropZone = document.querySelector('#drop-zone');
+const fileList = document.querySelector('#file-list');
+const bakeButton = document.querySelector('#bake-button');
+const statusBox = document.querySelector('#status');
+const resultBox = document.querySelector('#result');
+const continueButton = document.querySelector('#continue-button');
+const unsupportedActions = document.querySelector('#unsupported-actions');
+
+let selectedFiles = [];
+
+const extension = name => (name.split('.').pop() || '').toLowerCase();
+
+const prettyBytes = n => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1048576).toFixed(1)} MB`;
+};
+
+const setStatus = (title, detail, kind = '') => {
+  statusBox.className = `status ${kind}`;
+  statusBox.querySelector('.status-title').textContent = title;
+  statusBox.querySelector('.status-detail').textContent = detail;
+};
+
+function escapeHtml(str) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(str).replace(/[&<>"']/g, ch => map[ch]);
+}
+
+function supportedFiles() {
+  return Array.from(selectedFiles).filter(file => ALLOWED.has(extension(file.name)));
+}
+
+function unsupportedFiles() {
+  return Array.from(selectedFiles).filter(file => !ALLOWED.has(extension(file.name)));
+}
+
+function renderFiles() {
+  if (selectedFiles.length === 0) {
+    fileList.className = 'file-list empty';
+    fileList.textContent = 'No files selected yet.';
+    bakeButton.disabled = true;
+    unsupportedActions.hidden = true;
+    return;
+  }
+
+  fileList.className = 'file-list';
+  fileList.innerHTML = Array.from(selectedFiles).map(file => {
+    const isSupported = ALLOWED.has(extension(file.name));
+    return `<div class="file-row ${isSupported ? '' : 'unsupported'}"><span>${escapeHtml(file.name)}</span><span>${isSupported ? prettyBytes(file.size) : 'UNSUPPORTED'}</span></div>`;
+  }).join('');
+
+  const unsupported = unsupportedFiles();
+  unsupportedActions.hidden = unsupported.length === 0;
+  bakeButton.disabled = supportedFiles().length === 0;
+}
+
+filesInput.addEventListener('change', e => {
+  selectedFiles = [...e.target.files];
+  renderFiles();
+});
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragging');
+});
+
+dropZone.addEventListener('dragenter', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragging');
+});
+
+dropZone.addEventListener('dragleave', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragging');
+});
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragging');
+  selectedFiles = [...e.dataTransfer.files];
+  renderFiles();
+});
+
+continueButton.addEventListener('click', () => {
+  const supported = supportedFiles();
+  if (supported.length > 0) {
+    selectedFiles = supported;
+    setStatus('Continuing with supported files.', `${supported.length} file(s) will be baked.`, 'success');
+    renderFiles();
+  }
+});
+
+function clearCookies() {
+  document.cookie.split(';').forEach(raw => {
+    const name = raw.split('=')[0].trim();
+    if (name === 'cookiehost_count' || name.startsWith(PREFIX)) {
+      document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+    }
+  });
+}
+
+function getCookies() {
+  const map = {};
+  document.cookie.split('; ').forEach(cookie => {
+    if (!cookie) return;
+    const idx = cookie.indexOf('=');
+    const key = cookie.slice(0, idx);
+    const val = decodeURIComponent(cookie.slice(idx + 1));
+    map[key] = val;
+  });
+  return map;
+}
+
+function cookiesEnabled() {
+  const testName = 'test_cookie_' + Date.now();
+  document.cookie = `${testName}=1; Path=/; SameSite=Lax`;
+  const exists = document.cookie.includes(testName);
+  if (exists) {
+    document.cookie = `${testName}=; Max-Age=0; Path=/; SameSite=Lax`;
+  }
+  return exists;
+}
+
+async function gzip(bytes) {
+  if (!window.CompressionStream) {
+    throw new Error('GZIP_NOT_AVAILABLE');
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function toBase64(bytes) {
+  let binary = '';
+  const size = 8192;
+  for (let i = 0; i < bytes.length; i += size) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + size));
+  }
+  return btoa(binary);
+}
+
+bakeButton.addEventListener('click', async () => {
+  resultBox.hidden = true;
+
+  const unsupported = unsupportedFiles();
+  if (unsupported.length > 0) {
+    setStatus('Unsupported files found.', `${unsupported.length} file(s) cannot be baked. Remove them or use “Continue without unsupported files”.`, 'error');
+    return;
+  }
+
+  const supported = supportedFiles();
+  if (supported.length === 0) {
+    setStatus('No valid files selected.', 'Choose at least one supported website file.', 'error');
+    return;
+  }
+
+  try {
+    setStatus('Step 1 of 8 · Checking browser support…', 'Verifying this browser can store cookies and compress data.');
+    if (!cookiesEnabled()) throw new Error('COOKIES_BLOCKED');
+    if (!window.CompressionStream) throw new Error('GZIP_NOT_AVAILABLE');
+
+    setStatus('Step 2 of 8 · Reading files…', 'Reading the selected files locally.');
+
+    const files = [];
+    let originalSize = 0;
+    for (const file of supported) {
+      const text = await file.text();
+      originalSize += new TextEncoder().encode(text).length;
+      files.push({ path: file.name, content: text });
+    }
+
+    setStatus('Step 3 of 8 · Building package…', `Packaging ${files.length} file(s).`);
+    const packageJson = JSON.stringify({ version: 1, files });
+
+    setStatus('Step 4 of 8 · Compressing…', 'Using browser-native gzip.');
+    const compressed = await gzip(new TextEncoder().encode(packageJson));
+
+    setStatus('Step 5 of 8 · Encoding and splitting…', 'Converting compressed bytes to Base64 and splitting into chunks.');
+    const encoded = toBase64(compressed);
+    const chunks = [];
+    for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
+      chunks.push(encoded.slice(i, i + CHUNK_SIZE));
+    }
+
+    setStatus('Step 6 of 8 · Clearing old cookies…', 'Removing any previous CookieHost data.');
+    clearCookies();
+
+    setStatus('Step 7 of 8 · Writing cookies…', `Writing ${chunks.length} cookie chunk(s).`);
+    document.cookie = `${PREFIX}count=${chunks.length}; Max-Age=31536000; Path=/; SameSite=Lax`;
+    chunks.forEach((chunk, i) => {
+      const name = `${PREFIX}${String(i).padStart(4, '0')}`;
+      document.cookie = `${name}=${encodeURIComponent(chunk)}; Max-Age=31536000; Path=/; SameSite=Lax`;
+    });
+
+    setStatus('Step 8 of 8 · Verifying cookies…', 'Checking that every chunk was actually stored.');
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const cookies = getCookies();
+    const storedCount = chunks.filter((_, i) => `${PREFIX}${String(i).padStart(4, '0')}` in cookies).length;
+
+    if (storedCount !== chunks.length) {
+      throw new Error(`STORAGE_FAILED:${storedCount}:${chunks.length}`);
+    }
+
+    setStatus('Complete · Website baked! 🎉', 'The website is stored in this browser’s cookies.', 'success');
+
+    resultBox.hidden = false;
+    resultBox.innerHTML = `
+      <h3>🍪 WEBSITE BAKED</h3>
+      <div class="stats">
+        <div>Files<b>${files.length}</b></div>
+        <div>Original size<b>${prettyBytes(originalSize)}</b></div>
+        <div>Compressed size<b>${prettyBytes(compressed.length)}</b></div>
+        <div>Cookie payload<b>${prettyBytes(encoded.length)}</b></div>
+        <div>Cookies needed<b>${chunks.length}</b></div>
+        <div>Cookies stored<b>${storedCount}/${chunks.length}</b></div>
+      </div>
+      <p>Your website is now stored in cookies.</p>
+      <a class="primary-button open-button" href="./loadsite.html">Open Website →</a>
+    `;
+  } catch (error) {
+    let message = error.message;
+
+    if (message === 'COOKIES_BLOCKED') {
+      message = 'Cookies are blocked in this browser. Enable cookies to use CookieHost.';
+    } else if (message === 'GZIP_NOT_AVAILABLE') {
+      message = 'This browser does not support gzip compression. Use a modern browser.';
+    } else if (message.startsWith('STORAGE_FAILED')) {
+      const parts = message.split(':');
+      const stored = parts[1];
+      const needed = parts[2];
+      message = `Only ${stored}/${needed} cookies were stored. The browser’s cookie limit was reached or cookies are blocked.`;
+    }
+
+    setStatus('Baking failed.', message, 'error');
+  }
+});
+
+renderFiles();

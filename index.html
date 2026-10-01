@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🍪 CookieHost</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="badge">BROWSER-ONLY EXPERIMENT</div>
+      <h1>🍪 CookieHost</h1>
+      <p class="tagline">Why host a website normally when you can put it in cookies?</p>
+      <p class="intro">Choose a small text-only website. CookieHost packages and compresses it in your browser, then stores the result in cookies. Nothing is uploaded to a server.</p>
+    </section>
+
+    <section class="card builder-card">
+      <div class="section-heading">
+        <div><span class="step-number">01</span><h2>Choose your website</h2></div>
+        <span class="pill">TEXT FILES ONLY</span>
+      </div>
+      <label class="drop-zone" for="site-files" id="drop-zone">
+        <input id="site-files" type="file" multiple webkitdirectory directory accept=".html,.htm,.css,.js,.json,.txt,.svg">
+        <span class="upload-icon">↑</span>
+        <strong>Drop a website folder here</strong>
+        <span>or tap to choose files</span>
+        <small>HTML · CSS · JavaScript · JSON · TXT · SVG</small>
+      </label>
+      <div id="file-list" class="file-list empty">No files selected yet.</div>
+    </section>
+
+    <section class="card process-card">
+      <div class="section-heading">
+        <div><span class="step-number">02</span><h2>Bake it into cookies</h2></div>
+      </div>
+      <p class="muted">Every step happens locally in this browser. Your files never leave this page.</p>
+      <button id="bake-button" class="primary-button" disabled>🍪 Bake Website</button>
+      <div id="status" class="status" aria-live="polite">
+        <div class="status-title">Ready when you are.</div>
+        <div class="status-detail">Select a small website to begin.</div>
+      </div>
+      <div id="result" class="result" hidden></div>
+    </section>
+
+    <section class="notice warning"><strong>⚠ Your website's JavaScript will run</strong><span>CookieHost is a toy. Only bake files you trust. Browser cookie limits mean this is for tiny websites.</span></section>
+    <footer>CookieHost V1 · No database · No upload · Just cookies</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

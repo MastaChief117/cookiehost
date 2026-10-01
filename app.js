@@ -50,8 +50,9 @@ bakeButton.addEventListener('click', async () => {
     setStatus('Step 6 of 6 · Verifying storage…','Checking document.cookie to confirm every chunk was actually stored.');
     const stored=chunks.filter((_,i)=>readCookie(`${PREFIX}${String(i).padStart(4,'0')}`)!==null).length;
     if (stored !== chunks.length || readCookie(`${PREFIX}count`) !== String(chunks.length)) throw new Error(`COOKIE_LIMIT:${stored}:${chunks.length}`);
-    setStatus('Complete · Website baked!','The package is stored in this browser’s cookies.','success');
-    resultBox.hidden=false; resultBox.innerHTML=`<h3>🍪 WEBSITE BAKED</h3><div class="stats"><div>Files<b>${packageFiles.length}</b></div><div>Original size<b>${prettyBytes(original)}</b></div><div>Compressed size<b>${prettyBytes(compressed.length)}</b></div><div>Cookie payload<b>${prettyBytes(encoded.length)}</b></div><div>Cookies used<b>${chunks.length}</b></div><div>Stored successfully<b>${stored}/${chunks.length}</b></div></div><p>Your website is now cookies.</p><a class="primary-button open-button" href="/loadsite">Open Website →</a>`;
-  } catch (error) { const message=error.message.startsWith('COOKIE_LIMIT')?'This website is too large for the browser’s cookie storage. Try a smaller site.':error.message; setStatus('Baking failed.',message,'error'); }
+    setStatus('Complete · Website baked!','The package is stored in this browser's cookies.','success');
+    const loadsiteUrl = window.location.pathname.includes('/cookiehost/') ? './loadsite/index.html' : './loadsite/index.html';
+    resultBox.hidden=false; resultBox.innerHTML=`<h3>🍪 WEBSITE BAKED</h3><div class="stats"><div>Files<b>${packageFiles.length}</b></div><div>Original size<b>${prettyBytes(original)}</b></div><div>Compressed size<b>${prettyBytes(compressed.length)}</b></div><div>Cookie payload<b>${prettyBytes(encoded.length)}</b></div><div>Cookies used<b>${chunks.length}</b></div><div>Stored successfully<b>${stored}/${chunks.length}</b></div></div><p>Your website is now cookies.</p><a class="primary-button open-button" href="${loadsiteUrl}">Open Website →</a>`;
+  } catch (error) { const message=error.message.startsWith('COOKIE_LIMIT')?'This website is too large for the browser's cookie storage. Try a smaller site.':error.message; setStatus('Baking failed.',message,'error'); }
 });
 renderFiles();

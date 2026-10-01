@@ -21,13 +21,16 @@
         <span class="pill">TEXT FILES ONLY</span>
       </div>
       <label class="drop-zone" for="site-files" id="drop-zone">
-        <input id="site-files" type="file" multiple accept=".html,.htm,.css,.js,.json,.txt,.svg">
+        <input id="site-files" type="file" multiple>
         <span class="upload-icon">↑</span>
         <strong>Drop files here</strong>
         <span>or tap to choose files</span>
         <small>HTML · CSS · JavaScript · JSON · TXT · SVG</small>
       </label>
       <div id="file-list" class="file-list empty">No files selected yet.</div>
+      <div class="unsupported-actions" id="unsupported-actions" hidden>
+        <button id="continue-button" class="secondary-button" type="button">Continue without unsupported files</button>
+      </div>
     </section>
 
     <section class="card process-card">
